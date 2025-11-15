@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom'
 import TestBackend from './pages/TestBackend'
 import DocumentManagement from './pages/DocumentManagement'
 import ChatTest from './pages/ChatTest'
+import TeacherDashboard from './pages/TeacherDashboard'
 
 function Home() {
   return (
@@ -64,6 +65,7 @@ function App() {
         <Route path="/test" element={<TestBackend />} />
         <Route path="/documents" element={<DocumentManagement />} />
         <Route path="/chat" element={<ChatTest />} />
+        <Route path="/teacher" element={<TeacherDashboard />} />
       </Routes>
     </Router>
   )

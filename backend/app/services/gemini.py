@@ -14,6 +14,36 @@ def configure_gemini():
     genai.configure(api_key=api_key)
 
 
+def call_gemini(prompt: str, temperature: float = 0.7) -> str:
+    """
+    Call Gemini API with a simple prompt and return the text response.
+
+    Args:
+        prompt: The prompt to send to Gemini
+        temperature: Temperature for response randomness (0.0-1.0)
+
+    Returns:
+        The text response from Gemini
+    """
+    try:
+        configure_gemini()
+        model_name = current_app.config['GEMINI_CHAT_MODEL']
+
+        model = genai.GenerativeModel(model_name)
+        response = model.generate_content(
+            prompt,
+            generation_config=genai.types.GenerationConfig(
+                temperature=temperature,
+            )
+        )
+
+        return response.text
+
+    except Exception as e:
+        logger.error(f"Error calling Gemini: {str(e)}")
+        raise
+
+
 def generate_embedding(text: str) -> list:
     """
     Generate embedding for text using Gemini embedding model.

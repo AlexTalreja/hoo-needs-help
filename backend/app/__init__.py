@@ -22,10 +22,14 @@ def create_app(config_name='default'):
     from app.routes.rag import rag_bp
     from app.routes.documents import documents_bp
     from app.routes.analytics import analytics_bp
+    from app.routes.courses import courses_bp
+    from app.routes.chat_logs import chat_logs_bp
 
     app.register_blueprint(rag_bp, url_prefix='/api')
     app.register_blueprint(documents_bp, url_prefix='/api')
     app.register_blueprint(analytics_bp, url_prefix='/api')
+    app.register_blueprint(courses_bp, url_prefix='/api')
+    app.register_blueprint(chat_logs_bp, url_prefix='/api')
 
     # Health check endpoint
     @app.route('/health')

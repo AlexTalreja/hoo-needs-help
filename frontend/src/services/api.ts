@@ -161,15 +161,15 @@ export interface AnalyticsData {
   total_questions: number
   avg_rating: number
   flagged_count: number
-  top_concepts: Array<{ concept: string; count: number }>
+  top_concepts: string[]  // Array of topic strings
   question_volume: Array<{ date: string; count: number }>
 }
 
 /**
  * Get analytics for a course.
  */
-export async function getAnalytics(courseId: string): Promise<AnalyticsData> {
-  return apiRequest<AnalyticsData>(`/analytics/${courseId}`)
+export async function getAnalytics(courseId: string, timeRange: string = '7'): Promise<AnalyticsData> {
+  return apiRequest<AnalyticsData>(`/analytics/${courseId}?time_range=${timeRange}`)
 }
 
 export interface FlaggedQuestion {
@@ -192,6 +192,43 @@ export async function getFlaggedQuestions(
   return apiRequest<{ flagged_questions: FlaggedQuestion[] }>(
     `/flagged-questions/${courseId}`
   )
+}
+
+// ==================== Courses API ====================
+
+export interface Course {
+  id: string
+  name: string
+  instructor_id: string
+  system_prompt?: string
+  created_at?: string
+  updated_at?: string
+}
+
+/**
+ * Create a new course.
+ */
+export async function createCourse(
+  name: string
+): Promise<{ message: string; course: Course }> {
+  return apiRequest<{ message: string; course: Course }>('/courses', {
+    method: 'POST',
+    body: JSON.stringify({ name }),
+  })
+}
+
+/**
+ * Get all courses for the current user.
+ */
+export async function getCourses(): Promise<{ courses: Course[] }> {
+  return apiRequest<{ courses: Course[] }>('/courses')
+}
+
+/**
+ * Get a specific course by ID.
+ */
+export async function getCourse(courseId: string): Promise<{ course: Course }> {
+  return apiRequest<{ course: Course }>(`/courses/${courseId}`)
 }
 
 // ==================== Health Check ====================

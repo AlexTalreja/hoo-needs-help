@@ -9,7 +9,8 @@
       "Bash(tree:*)",
       "Bash(pip install:*)",
       "Bash(nul)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(npm install:*)"
     ],
     "deny": [],
     "ask": []

@@ -1,8 +1,10 @@
 """Analytics API endpoints."""
 from flask import Blueprint, request, jsonify
 from app.services.supabase import get_supabase_client
+from app.services.gemini import call_gemini
 from app.utils.auth import require_auth
 from collections import Counter
+from datetime import datetime, timedelta, timezone
 import logging
 
 logger = logging.getLogger(__name__)
@@ -15,12 +17,15 @@ def get_analytics(user, course_id):
     """
     Get analytics data for a course.
 
+    Query Parameters:
+        time_range: str - '7', '30', '90', or 'all' (default: '7')
+
     Returns:
         {
             "total_questions": int,
             "avg_rating": float,
             "flagged_count": int,
-            "top_concepts": [{"concept": str, "count": int}],
+            "top_concepts": [str],  # Array of topic strings (max 5)
             "question_volume": [{"date": str, "count": int}]
         }
     """
@@ -29,11 +34,25 @@ def get_analytics(user, course_id):
         if user.get('role') not in ['ta', 'instructor']:
             return jsonify({'error': 'Unauthorized'}), 403
 
+        # Get time range parameter
+        time_range = request.args.get('time_range', '7')
+
         supabase = get_supabase_client()
 
         # Get all QA logs for the course
         logs = supabase.table('qa_logs').select('*').eq('course_id', course_id).execute()
-        qa_data = logs.data
+        all_qa_data = logs.data
+
+        # Filter by time range
+        if time_range != 'all':
+            days = int(time_range)
+            cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
+            qa_data = [
+                log for log in all_qa_data
+                if log.get('created_at') and datetime.fromisoformat(log['created_at'].replace('Z', '+00:00')) >= cutoff_date
+            ]
+        else:
+            qa_data = all_qa_data
 
         # Calculate metrics
         total_questions = len(qa_data)
@@ -45,20 +64,39 @@ def get_analytics(user, course_id):
         # Flagged count
         flagged_count = len([log for log in qa_data if log['status'] == 'flagged'])
 
-        # Extract top concepts (simple keyword extraction from questions)
-        # TODO: Implement more sophisticated NLP-based keyword extraction
-        all_words = []
-        for log in qa_data:
-            words = log['question'].lower().split()
-            # Filter common words
-            filtered_words = [w for w in words if len(w) > 4]
-            all_words.extend(filtered_words)
+        # Extract top concepts using Gemini API
+        top_concepts = []
+        if qa_data:
+            # Combine all questions into one text blob
+            questions_text = " ||| ".join([log['question'] for log in qa_data])
 
-        concept_counts = Counter(all_words).most_common(10)
-        top_concepts = [{'concept': word, 'count': count} for word, count in concept_counts]
+            # Create prompt for Gemini
+            prompt = f"""Analyze the following student questions and summarize the key topics being asked about in 3 detailed sentences.
+
+Questions: {questions_text}
+
+Return format: Exactly 3 sentences, each on a new line. Be specific and descriptive about what students are asking."""
+
+            try:
+                gemini_response = call_gemini(prompt, temperature=0.3)
+                # Split response into sentences (by newlines or periods)
+                response_text = gemini_response.strip()
+
+                # Try splitting by newlines first
+                sentences = [s.strip() for s in response_text.split('\n') if s.strip()]
+
+                # If we don't have 3 sentences, try splitting by periods
+                if len(sentences) < 3:
+                    sentences = [s.strip() + '.' for s in response_text.split('.') if s.strip()]
+
+                # Take up to 3 sentences
+                top_concepts = sentences[:3]
+
+            except Exception as e:
+                logger.error(f"Error calling Gemini for topic extraction: {str(e)}")
+                top_concepts = []
 
         # Question volume over time (grouped by day)
-        from datetime import datetime
         volume_by_date = {}
         for log in qa_data:
             created_at = log.get('created_at', '')
