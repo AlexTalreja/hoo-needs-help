@@ -14,79 +14,206 @@ An AI-powered teaching assistant platform that helps students get instant answer
 
 ## Tech Stack
 
-- **Frontend**: React + Vite + TypeScript + Tailwind CSS
-- **Backend**: Supabase (Auth, Postgres, pgvector, Storage, Edge Functions)
-- **AI**: Google Gemini (text-embedding-004 + gemini-2.5-flash)
-- **Video**: HTML5 video player with timestamp seeking
+### Frontend
+- **React** + **Vite** + **TypeScript** + **Tailwind CSS**
+- Communicates with Flask backend via REST API
 
-## Project Structure
+### Backend
+- **Flask** (Python) - RESTful API server
+- **Google Gemini** - text-embedding-004 (embeddings) + gemini-2.0-flash-exp (chat)
+- **PyPDF2** - PDF text extraction
+- **VTT Parser** - Video transcript processing
+
+### Infrastructure
+- **Supabase** - PostgreSQL database (with pgvector), Auth, Storage
+- **Docker** - Containerized development environment
+
+## Project Structure (Monorepo)
 
 ```
-/src
-  /components     # Reusable UI components
-  /pages          # Page-level components (Student, TA, Admin)
-  /hooks          # Custom React hooks
-  /utils          # Helper functions
-  /services       # API calls and Supabase clients
-  /types          # TypeScript type definitions
-/supabase
-  /functions      # Edge Functions for backend logic (future)
-  /migrations     # Database schema migrations (future)
+HooNeedsHelp/
+├── frontend/                    # React application
+│   ├── src/
+│   │   ├── components/         # UI components
+│   │   ├── pages/              # Page-level components
+│   │   ├── hooks/              # Custom React hooks
+│   │   ├── services/
+│   │   │   ├── supabase.ts    # Supabase client (Auth only)
+│   │   │   └── api.ts         # Flask API client
+│   │   ├── types/              # TypeScript types
+│   │   └── utils/              # Helper functions
+│   ├── package.json
+│   └── vite.config.ts
+│
+├── backend/                     # Flask application
+│   ├── app/
+│   │   ├── routes/             # API endpoints
+│   │   ├── services/           # Business logic
+│   │   ├── utils/              # Helper functions
+│   │   └── models/             # Data models
+│   ├── requirements.txt
+│   ├── run.py
+│   └── config.py
+│
+├── docker-compose.yml          # Run both services with Docker
+├── package.json                # Monorepo scripts
+└── README.md
 ```
 
 ## Getting Started
 
 ### Prerequisites
 
-- Node.js 18+ and npm
-- A Supabase account (free tier works)
-- A Google Gemini API key (free tier available)
+- **Node.js** 18+ and npm
+- **Python** 3.11+
+- **Supabase account** (free tier works)
+- **Google Gemini API key** (free tier available)
 
-### Installation
+### Option 1: Manual Setup (Recommended for Development)
 
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd HooNeedsHelp
-   ```
+#### 1. Clone the repository
+```bash
+git clone <repository-url>
+cd HooNeedsHelp
+```
 
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
+#### 2. Set up the Backend (Flask)
 
-3. **Configure environment variables**
+```bash
+# Navigate to backend
+cd backend
 
-   Copy `.env.example` to `.env` and fill in your credentials:
-   ```bash
-   cp .env.example .env
-   ```
+# Create virtual environment
+python -m venv venv
 
-   Update the following in `.env`:
-   - `VITE_SUPABASE_URL`: Your Supabase project URL
-   - `VITE_SUPABASE_ANON_KEY`: Your Supabase anonymous key
-   - `GEMINI_API_KEY`: Your Google Gemini API key
+# Activate virtual environment
+# Windows:
+venv\Scripts\activate
+# Mac/Linux:
+source venv/bin/activate
 
-4. **Run the development server**
-   ```bash
-   npm run dev
-   ```
+# Install dependencies
+pip install -r requirements.txt
 
-   Open [http://localhost:3000](http://localhost:3000) in your browser.
+# Configure environment variables
+cp .env.example .env
+# Edit .env and add your credentials:
+# - SUPABASE_URL
+# - SUPABASE_SERVICE_ROLE_KEY (not anon key!)
+# - GEMINI_API_KEY
+# - SECRET_KEY
 
-### Available Scripts
+# Run the backend server
+python run.py
+# Server runs on http://localhost:5000
+```
 
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run preview` - Preview production build
-- `npm run lint` - Run ESLint
-- `npm run format` - Format code with Prettier
+#### 3. Set up the Frontend (React)
+
+```bash
+# Open a NEW terminal
+cd frontend
+
+# Install dependencies
+npm install
+
+# Configure environment variables
+cp .env.example .env
+# Edit .env and add:
+# - VITE_SUPABASE_URL
+# - VITE_SUPABASE_ANON_KEY (not service role key!)
+# - VITE_API_URL=http://localhost:5000/api
+
+# Run the frontend development server
+npm run dev
+# Server runs on http://localhost:3000
+```
+
+#### 4. Access the Application
+
+Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+### Option 2: Docker Setup (All-in-One)
+
+```bash
+# Build and run both frontend and backend
+docker-compose up
+
+# Frontend: http://localhost:3000
+# Backend: http://localhost:5000
+```
+
+## Available Scripts
+
+### Monorepo Scripts (from root)
+
+```bash
+npm run dev                 # Run both frontend and backend concurrently
+npm run dev:frontend        # Run frontend only
+npm run dev:backend         # Run backend only
+npm run install:all         # Install all dependencies
+npm run build:frontend      # Build frontend for production
+```
+
+### Frontend Scripts (from /frontend)
+
+```bash
+npm run dev                 # Start Vite dev server
+npm run build               # Build for production
+npm run lint                # Run ESLint
+npm run format              # Format code with Prettier
+```
+
+### Backend Scripts (from /backend)
+
+```bash
+python run.py               # Run Flask dev server
+pytest                      # Run tests (when implemented)
+```
+
+## Environment Variables
+
+### Frontend (.env in /frontend)
+```bash
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your_anon_key_here
+VITE_API_URL=http://localhost:5000/api
+```
+
+### Backend (.env in /backend)
+```bash
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key_here
+GEMINI_API_KEY=your_gemini_api_key_here
+SECRET_KEY=random-secret-key
+FLASK_DEBUG=True
+CORS_ORIGINS=http://localhost:3000
+```
+
+**⚠️ Security Note**: Never commit `.env` files or expose service role keys!
+
+## Development Workflow
+
+1. **Backend** runs on port 5000, handles:
+   - RAG queries (vector search + Gemini)
+   - Document processing (PDF, VTT)
+   - Analytics calculations
+
+2. **Frontend** runs on port 3000, handles:
+   - User interface
+   - Auth (Supabase Auth directly)
+   - API calls to Flask backend
+
+3. **Supabase** (cloud):
+   - Database (Postgres + pgvector)
+   - Authentication
+   - File storage
 
 ## Development Roadmap
 
 See [ROADMAP.md](ROADMAP.md) for the detailed implementation plan.
 
-**Current Status**: Phase 1.1 (Project Setup) - ✅ Complete
+**Current Status**: Phase 1.1 (Project Setup) - ✅ Complete (Restructured for Flask)
 
 ## Documentation
 
