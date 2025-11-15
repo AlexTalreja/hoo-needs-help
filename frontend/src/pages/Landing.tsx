@@ -6,7 +6,7 @@ import Signup from '../components/Signup'
 
 export default function Landing() {
   const [showAuth, setShowAuth] = useState<'login' | 'signup' | null>(null)
-  const { user } = useAuth()
+  const { user, userRole } = useAuth()
   const navigate = useNavigate()
 
   return (
@@ -119,10 +119,18 @@ export default function Landing() {
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <button
-              onClick={() => setShowAuth('signup')}
+              onClick={() => {
+                if (user) {
+                  // Navigate to appropriate dashboard based on role
+                  const isTeacher = userRole === 'instructor' || userRole === 'ta'
+                  navigate(isTeacher ? '/teacher' : '/chat')
+                } else {
+                  setShowAuth('signup')
+                }
+              }}
               className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white font-semibold rounded-lg hover:from-emerald-700 hover:to-emerald-800 transition shadow-xl shadow-emerald-500/30 text-lg"
             >
-              Start for Free
+              {user ? 'Dashboard' : 'Start for Free'}
             </button>
           </div>
 
@@ -324,10 +332,17 @@ export default function Landing() {
             Join hundreds of students and instructors using AI-powered learning
           </p>
           <button
-            onClick={() => setShowAuth('signup')}
+            onClick={() => {
+              if (user) {
+                const isTeacher = userRole === 'instructor' || userRole === 'ta'
+                navigate(isTeacher ? '/teacher' : '/chat')
+              } else {
+                setShowAuth('signup')
+              }
+            }}
             className="px-10 py-4 bg-white text-emerald-600 font-semibold rounded-lg hover:bg-gray-100 transition shadow-lg text-lg"
           >
-            Get Started Free
+            {user ? 'Go to Dashboard' : 'Get Started Free'}
           </button>
         </div>
       </div>
