@@ -18,7 +18,7 @@ interface Course {
 }
 
 export default function Courses() {
-  const { user } = useAuth()
+  const { user, userRole } = useAuth()
   const [availableCourses, setAvailableCourses] = useState<Course[]>([])
   const [enrolledCourses, setEnrolledCourses] = useState<Course[]>([])
   const [loading, setLoading] = useState(true)
@@ -26,6 +26,9 @@ export default function Courses() {
   const [showCodeModal, setShowCodeModal] = useState(false)
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null)
   const [message, setMessage] = useState<{type: 'success' | 'error', text: string} | null>(null)
+
+  // Redirect teachers to their dashboard
+  const isTeacher = userRole === 'instructor' || userRole === 'ta'
 
   useEffect(() => {
     loadCourses()
@@ -196,6 +199,28 @@ export default function Courses() {
       console.error('Unenroll error:', error)
       setMessage({ type: 'error', text: 'Failed to unenroll' })
     }
+  }
+
+  // Show message for teachers/TAs
+  if (isTeacher) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Header />
+        <div className="container mx-auto px-6 py-8">
+          <div className="max-w-2xl mx-auto">
+            <div className="bg-white rounded-lg shadow-md p-8 text-center">
+              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="text-4xl">👨‍🏫</span>
+              </div>
+              <h1 className="text-2xl font-bold text-gray-900 mb-4">Teacher Account</h1>
+              <p className="text-gray-600">
+                This page is for student course enrollment. Use the Teacher Dashboard in the navigation menu to manage your courses.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
