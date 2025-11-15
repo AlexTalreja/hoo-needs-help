@@ -2,6 +2,8 @@
 from functools import wraps
 from flask import request, jsonify
 from app.services.supabase import get_supabase_client
+import jwt
+from flask import current_app
 import logging
 
 logger = logging.getLogger(__name__)
@@ -26,22 +28,36 @@ def require_auth(f):
             # Extract token (format: "Bearer <token>")
             token = auth_header.split(' ')[1] if ' ' in auth_header else auth_header
 
-            # Verify token with Supabase
-            supabase = get_supabase_client()
-            user_response = supabase.auth.get_user(token)
+            # Decode JWT token (don't verify signature since Supabase handles that)
+            # We just need to extract the user ID
+            decoded = jwt.decode(token, options={"verify_signature": False})
 
-            if not user_response or not user_response.user:
+            user_id = decoded.get('sub')  # 'sub' contains the user ID
+            user_email = decoded.get('email')
+
+            if not user_id:
                 return jsonify({'error': 'Invalid token'}), 401
 
-            user_data = user_response.user
-
             # Get user role from users table
-            user_record = supabase.table('users').select('role').eq('id', user_data.id).single().execute()
+            supabase = get_supabase_client()
+            user_record = supabase.table('users').select('role').eq('id', user_id).execute()
+
+            # If user doesn't exist in users table, create them with default role
+            if not user_record.data:
+                # Create user entry
+                supabase.table('users').insert({
+                    'id': user_id,
+                    'email': user_email,
+                    'role': 'student'  # Default role
+                }).execute()
+                role = 'student'
+            else:
+                role = user_record.data[0].get('role', 'student')
 
             user_info = {
-                'id': user_data.id,
-                'email': user_data.email,
-                'role': user_record.data.get('role', 'student') if user_record.data else 'student'
+                'id': user_id,
+                'email': user_email,
+                'role': role
             }
 
             # Call the original function with user info

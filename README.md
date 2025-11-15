@@ -20,7 +20,7 @@ An AI-powered teaching assistant platform that helps students get instant answer
 
 ### Backend
 - **Flask** (Python) - RESTful API server
-- **Google Gemini** - text-embedding-004 (embeddings) + gemini-2.0-flash-exp (chat)
+- **Google Gemini** - text-embedding-004 (embeddings) + gemini-2.5-flash (chat)
 - **PyPDF2** - PDF text extraction
 - **VTT Parser** - Video transcript processing
 

@@ -19,7 +19,11 @@ def get_supabase_client() -> Client:
         if not url or not key:
             raise ValueError('Supabase configuration is missing')
 
-        _supabase_client = create_client(url, key)
+        # Create client with minimal options to avoid compatibility issues
+        _supabase_client = create_client(
+            supabase_url=url,
+            supabase_key=key
+        )
         logger.info('Supabase client initialized')
 
     return _supabase_client

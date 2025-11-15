@@ -14,7 +14,7 @@ Python Flask backend for the HooNeedsHelp AI teaching assistant platform.
 
 - **Flask**: Web framework
 - **Supabase**: Database, auth, and storage
-- **Google Gemini**: Embeddings (text-embedding-004) and chat (gemini-2.0-flash-exp)
+- **Google Gemini**: Embeddings (text-embedding-004) and chat (gemini-2.5-flash)
 - **PyPDF2**: PDF text extraction
 - **python-dotenv**: Environment configuration
 

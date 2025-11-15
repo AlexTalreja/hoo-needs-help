@@ -19,7 +19,8 @@ class Config:
     # Gemini
     GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
     GEMINI_EMBEDDING_MODEL = 'models/text-embedding-004'
-    GEMINI_CHAT_MODEL = 'models/gemini-2.0-flash-exp'
+    # Upgraded from gemini-2.0-flash-exp to stable gemini-2.5-flash (2025-11 migration)
+    GEMINI_CHAT_MODEL = 'models/gemini-2.5-flash'
 
     # RAG Configuration
     EMBEDDING_DIMENSION = 768  # text-embedding-004 dimension
