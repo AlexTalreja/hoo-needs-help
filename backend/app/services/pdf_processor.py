@@ -44,14 +44,14 @@ def process_pdf(document_id: str, file_url: str, course_id: str):
             # TODO: Implement more sophisticated chunking (by paragraph, token limit, etc.)
             chunks = chunk_text(text, max_tokens=500)
 
-            for chunk_idx, chunk_text in enumerate(chunks):
+            for chunk_idx, chunk_content in enumerate(chunks):
                 # Generate embedding
-                embedding = generate_embedding(chunk_text)
+                embedding = generate_embedding(chunk_content)
 
                 # Store chunk
                 chunk_record = {
                     'document_id': document_id,
-                    'content': chunk_text,
+                    'content': chunk_content,
                     'metadata': {
                         'page': page_num,
                         'chunk_index': chunk_idx,
