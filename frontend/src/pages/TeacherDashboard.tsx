@@ -4,6 +4,7 @@ import FileUpload from '../components/teacher/FileUpload'
 import Analytics from '../components/teacher/Analytics'
 import ChatLogs from '../components/teacher/ChatLogs'
 import { getCourses, Course } from '../services/api'
+import Header from '../components/Header'
 
 function TeacherDashboard() {
   const [courses, setCourses] = useState<Course[]>([])
@@ -35,7 +36,9 @@ function TeacherDashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
+      <Header />
+      
+      {/* Page Title */}
       <div className="bg-white shadow">
         <div className="container mx-auto px-4 py-6">
           <h1 className="text-3xl font-bold text-gray-900">Teacher Dashboard</h1>
@@ -60,7 +63,7 @@ function TeacherDashboard() {
                       onClick={() => setSelectedCourseId(course.id)}
                       className={`w-full text-left px-4 py-3 rounded-lg transition ${
                         selectedCourseId === course.id
-                          ? 'bg-purple-100 text-purple-700 font-medium'
+                          ? 'bg-emerald-100 text-emerald-700 font-medium'
                           : 'bg-gray-50 hover:bg-gray-100 text-gray-700'
                       }`}
                     >
@@ -82,7 +85,7 @@ function TeacherDashboard() {
                     onClick={() => setActiveTab('create')}
                     className={`px-6 py-4 text-sm font-medium border-b-2 transition ${
                       activeTab === 'create'
-                        ? 'border-purple-500 text-purple-600'
+                        ? 'border-emerald-500 text-emerald-600'
                         : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                     }`}
                   >
@@ -93,7 +96,7 @@ function TeacherDashboard() {
                     disabled={!selectedCourseId}
                     className={`px-6 py-4 text-sm font-medium border-b-2 transition ${
                       activeTab === 'upload'
-                        ? 'border-purple-500 text-purple-600'
+                        ? 'border-emerald-500 text-emerald-600'
                         : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                     } ${!selectedCourseId ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
@@ -104,7 +107,7 @@ function TeacherDashboard() {
                     disabled={!selectedCourseId}
                     className={`px-6 py-4 text-sm font-medium border-b-2 transition ${
                       activeTab === 'analytics'
-                        ? 'border-purple-500 text-purple-600'
+                        ? 'border-emerald-500 text-emerald-600'
                         : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                     } ${!selectedCourseId ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
@@ -115,7 +118,7 @@ function TeacherDashboard() {
                     disabled={!selectedCourseId}
                     className={`px-6 py-4 text-sm font-medium border-b-2 transition ${
                       activeTab === 'chatlogs'
-                        ? 'border-purple-500 text-purple-600'
+                        ? 'border-emerald-500 text-emerald-600'
                         : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                     } ${!selectedCourseId ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >

@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { askQuestion, AskQuestionResponse, Citation } from '../services/api'
 import { supabase } from '../services/supabase'
+import { useAuth } from '../contexts/AuthContext'
+import Header from '../components/Header'
 
 interface Message {
   id: string
@@ -10,37 +12,80 @@ interface Message {
   timestamp: Date
 }
 
+interface EnrolledCourse {
+  id: string
+  name: string
+}
+
 export default function ChatTest() {
+  const { user } = useAuth()
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [enrolledCourses, setEnrolledCourses] = useState<EnrolledCourse[]>([])
+  const [selectedCourseId, setSelectedCourseId] = useState<string>('')
+  const [loadingCourses, setLoadingCourses] = useState(true)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  const courseId = '11111111-1111-1111-1111-111111111111' // Test course ID
+  useEffect(() => {
+    loadEnrolledCourses()
+  }, [user])
 
   useEffect(() => {
-    checkAuth()
-    // Add welcome message
-    setMessages([
-      {
-        id: '0',
-        type: 'assistant',
-        content:
-          'Hello! I\'m your AI teaching assistant. Ask me anything about your course materials!',
-        timestamp: new Date(),
-      },
-    ])
-  }, [])
+    if (selectedCourseId) {
+      // Reset messages when course changes
+      setMessages([
+        {
+          id: '0',
+          type: 'assistant',
+          content:
+            'Hello! I\'m your AI teaching assistant. Ask me anything about your course materials!',
+          timestamp: new Date(),
+        },
+      ])
+    }
+  }, [selectedCourseId])
+
+  const loadEnrolledCourses = async () => {
+    if (!user) return
+
+    setLoadingCourses(true)
+    try {
+      const { data, error } = await supabase
+        .from('course_enrollments')
+        .select(`
+          course_id,
+          courses (
+            id,
+            name
+          )
+        `)
+        .eq('user_id', user.id)
+        .eq('status', 'active')
+
+      if (error) throw error
+
+      const courses = data?.map(e => ({
+        id: e.courses.id,
+        name: e.courses.name,
+      })) || []
+
+      setEnrolledCourses(courses as any)
+
+      // Auto-select first course if available
+      if (courses.length > 0 && !selectedCourseId) {
+        setSelectedCourseId(courses[0].id)
+      }
+    } catch (error) {
+      console.error('Error loading enrolled courses:', error)
+    } finally {
+      setLoadingCourses(false)
+    }
+  }
 
   useEffect(() => {
     scrollToBottom()
   }, [messages])
-
-  const checkAuth = async () => {
-    const { data } = await supabase.auth.getSession()
-    setIsAuthenticated(!!data.session)
-  }
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -64,7 +109,7 @@ export default function ChatTest() {
     try {
       const response: AskQuestionResponse = await askQuestion({
         question: input,
-        course_id: courseId,
+        course_id: selectedCourseId,
       })
 
       const assistantMessage: Message = {
@@ -94,7 +139,7 @@ export default function ChatTest() {
       return (
         <span
           key={index}
-          className="inline-block bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs mr-1 mb-1"
+          className="inline-block bg-emerald-100 text-emerald-800 px-2 py-1 rounded text-xs mr-1 mb-1"
         >
           📄 {citation.file_name} (p. {citation.page})
         </span>
@@ -105,7 +150,7 @@ export default function ChatTest() {
       return (
         <span
           key={index}
-          className="inline-block bg-purple-100 text-purple-800 px-2 py-1 rounded text-xs mr-1 mb-1"
+          className="inline-block bg-teal-100 text-teal-800 px-2 py-1 rounded text-xs mr-1 mb-1"
         >
           🎥 {citation.file_name} ({minutes}:{seconds.toString().padStart(2, '0')})
         </span>
@@ -123,18 +168,25 @@ export default function ChatTest() {
     return null
   }
 
-  if (!isAuthenticated) {
+  // Show enrollment prompt if no courses
+  if (!loadingCourses && enrolledCourses.length === 0) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="bg-white p-8 rounded-lg shadow-md">
-          <h2 className="text-2xl font-bold mb-4">Authentication Required</h2>
-          <p className="text-gray-600">Please log in to use the chat.</p>
-          <a
-            href="/test"
-            className="mt-4 inline-block px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-          >
-            Go to Login
-          </a>
+      <div className="h-screen flex flex-col bg-gray-50">
+        <Header />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center max-w-md">
+            <div className="text-6xl mb-4">📚</div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">No Courses Enrolled</h2>
+            <p className="text-gray-600 mb-6">
+              You need to enroll in a course before you can start chatting with the AI assistant.
+            </p>
+            <a
+              href="/courses"
+              className="inline-block px-6 py-3 bg-emerald-600 text-white font-semibold rounded-lg hover:bg-emerald-700 transition"
+            >
+              Browse Courses
+            </a>
+          </div>
         </div>
       </div>
     )
@@ -142,10 +194,28 @@ export default function ChatTest() {
 
   return (
     <div className="h-screen flex flex-col bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
-        <h1 className="text-2xl font-bold text-gray-900">AI Teaching Assistant</h1>
-        <p className="text-sm text-gray-600">CS 101: Introduction to Computer Science</p>
+      <Header />
+
+      {/* Course Selector */}
+      <div className="bg-white border-b border-gray-200 px-6 py-3">
+        <div className="max-w-4xl mx-auto flex items-center gap-3">
+          <label className="text-sm font-medium text-gray-700">Course:</label>
+          {loadingCourses ? (
+            <div className="text-sm text-gray-500">Loading courses...</div>
+          ) : (
+            <select
+              value={selectedCourseId}
+              onChange={e => setSelectedCourseId(e.target.value)}
+              className="flex-1 max-w-md px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+            >
+              {enrolledCourses.map(course => (
+                <option key={course.id} value={course.id}>
+                  {course.name}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
       </div>
 
       {/* Messages */}
@@ -158,7 +228,7 @@ export default function ChatTest() {
             <div
               className={`max-w-2xl rounded-lg px-4 py-3 ${
                 message.type === 'user'
-                  ? 'bg-blue-500 text-white'
+                  ? 'bg-emerald-500 text-white'
                   : 'bg-white border border-gray-200'
               }`}
             >
@@ -212,13 +282,13 @@ export default function ChatTest() {
               value={input}
               onChange={e => setInput(e.target.value)}
               placeholder="Ask a question about your course..."
-              className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
               disabled={loading}
             />
             <button
               type="submit"
-              disabled={loading || !input.trim()}
-              className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition"
+              disabled={loading || !input.trim() || !selectedCourseId}
+              className="px-6 py-3 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed transition"
             >
               Send
             </button>
