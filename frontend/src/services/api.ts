@@ -68,6 +68,7 @@ export interface AskQuestionResponse {
   answer: string
   citations: Citation[]
   sources_used: number
+  confidence_score: number
 }
 
 /**

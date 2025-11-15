@@ -58,6 +58,7 @@ export interface QALog {
   question: string
   ai_answer: string
   sources_cited: SourceCitation[]
+  confidence_score?: number
   rating?: number
   status: QAStatus
   created_at?: string
@@ -80,4 +81,5 @@ export interface ChatMessage {
   content: string
   timestamp: Date
   sources?: SourceCitation[]
+  confidence_score?: number
 }
