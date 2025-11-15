@@ -26,6 +26,8 @@ class Config:
     EMBEDDING_DIMENSION = 768  # text-embedding-004 dimension
     SIMILARITY_THRESHOLD = 0.7
     MAX_CONTEXT_CHUNKS = 5
+    # Toggle between 'legacy' (pdf_processor + rpc match_document_chunks) and 'custom' (LangChain embed/retrieve)
+    RAG_MODE = os.getenv('RAG_MODE', 'legacy')
 
     # CORS
     CORS_ORIGINS = os.getenv('CORS_ORIGINS', 'http://localhost:3000').split(',')

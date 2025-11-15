@@ -1,4 +1,5 @@
 """RAG (Retrieval-Augmented Generation) API endpoints."""
+import os
 from flask import Blueprint, request, jsonify
 from app.services.gemini import generate_embedding, generate_answer
 from app.services.supabase import get_supabase_client
@@ -38,18 +39,53 @@ def ask_question(user):
 
         logger.info(f"Processing question for course {course_id}: {question[:50]}...")
 
+        rag_mode = os.getenv('RAG_MODE', 'legacy').lower()
+        supabase = get_supabase_client()
+
+        if rag_mode == 'custom':
+            try:
+                from app.routes.custom_rag.retrieve import run_query as custom_run_query
+            except Exception as e:
+                logger.error(f"Failed to import retrieve.run_query: {str(e)}")
+                return jsonify({'error': 'Custom RAG retrieval not available'}), 500
+
+            # Use structured output from retrieve.py
+            answer_data = custom_run_query(query=question, k=3, save_json=True, structured=True)
+
+            # Log Q&A interaction (custom path)
+            log_entry = {
+                'course_id': course_id,
+                'user_id': user['id'],
+                'question': question,
+                'ai_answer': answer_data.get('answer'),
+                'sources_cited': answer_data.get('citations', []),
+                'status': 'answered'
+            }
+            supabase.table('qa_logs').insert(log_entry).execute()
+
+            return jsonify(answer_data), 200
+
+        # Legacy path (default)
         # 1. Generate embedding for the question
         question_embedding = generate_embedding(question)
 
-        # 2. Perform vector similarity search
-        supabase = get_supabase_client()
-
-        # Search document chunks
-        chunks_response = supabase.rpc('match_document_chunks', {
-            'query_embedding': question_embedding,
-            'match_count': 3,
-            'filter_course_id': course_id
-        }).execute()
+        # 2. Perform vector similarity search using env-configurable RPC/table naming
+        # Try versioned RPC first if present, then legacy fallback
+        try:
+            match_fn = os.getenv('MATCH_DOCS_RPC', os.getenv('RAG_MATCH_FN', 'match_documentsv3072'))
+            chunks_response = supabase.rpc(match_fn, {
+                'query_embedding': question_embedding,
+                'match_count': 3,
+                'filter_course_id': course_id
+            }).execute()
+            if not chunks_response.data:
+                raise ValueError('Empty result from versioned RPC')
+        except Exception:
+            chunks_response = supabase.rpc('match_document_chunks', {
+                'query_embedding': question_embedding,
+                'match_count': 3,
+                'filter_course_id': course_id
+            }).execute()
 
         # Search TA-verified answers
         verified_response = supabase.rpc('match_verified_answers', {

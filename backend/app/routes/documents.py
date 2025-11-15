@@ -1,4 +1,5 @@
 """Document processing API endpoints."""
+import os
 from flask import Blueprint, request, jsonify
 from app.services.pdf_processor import process_pdf
 from app.services.vtt_processor import process_vtt
@@ -64,7 +65,18 @@ def upload_document(user):
         if document_type == 'pdf':
             # Get the file URL and process
             file_url = supabase.storage.from_('course-documents').get_public_url(file_path)
-            process_pdf(document_id, file_url, course_id)
+            rag_mode = os.getenv('RAG_MODE', 'legacy').lower()
+            if rag_mode == 'custom':
+                # Defer to custom RAG embedding flow (LangChain + SupabaseVectorStore)
+                try:
+                    from app.services.custom_rag import custom_embed_pdf
+                except Exception as e:
+                    logger.error(f"Failed to import custom RAG embedder: {e}")
+                    return jsonify({'error': 'Custom RAG not available on server'}), 500
+                custom_embed_pdf(document_id, file_url, course_id, file.filename)
+            else:
+                # Default legacy embedding flow
+                process_pdf(document_id, file_url, course_id)
         elif document_type == 'vtt':
             file_url = supabase.storage.from_('course-documents').get_public_url(file_path)
             process_vtt(document_id, file_url, course_id)
