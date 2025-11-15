@@ -22,10 +22,9 @@ This roadmap follows a **bottom-up, dependency-driven approach** that prioritize
 
 - [ ] Initialize React + Vite project with TypeScript
 - [ ] Configure Tailwind CSS
-- [ ] Set up Supabase project and install CLI
+- [ ] Set up Supabase project
 - [ ] Configure environment variables (.env)
 - [ ] Set up folder structure (`/src/components`, `/pages`, `/hooks`, `/services`, `/types`)
-- [ ] Initialize Git workflows and branch protection
 - [ ] Set up ESLint and Prettier
 
 **Dependencies**: None
