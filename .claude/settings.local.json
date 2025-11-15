@@ -7,7 +7,9 @@
       "Bash(npm run build:*)",
       "Bash(npm run lint)",
       "Bash(tree:*)",
-      "Bash(pip install:*)"
+      "Bash(pip install:*)",
+      "Bash(nul)",
+      "Bash(curl:*)"
     ],
     "deny": [],
     "ask": []
