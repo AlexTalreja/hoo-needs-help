@@ -142,15 +142,15 @@ For all backend logic. This is where we'll handle RAG, AI calls, and data proces
 
 AI - Embeddings
 
-OpenAI (text-embedding-3-small)
+Google Gemini (text-embedding-004)
 
 Called from a Supabase Edge Function to turn text chunks into vectors.
 
 AI - Chat
 
-OpenAI (gpt-4o-mini)
+Google Gemini (gemini-2.5-flash)
 
-Called from an Edge Function. Fast, cheap, and powerful for generating the final answer.
+Called from an Edge Function. Fast, cost-effective, and powerful for generating the final answer.
 
 Video Player
 
@@ -273,7 +273,7 @@ Answer (using ONLY the context above and cite your sources):
 ```
 
 
-e.  Calls OpenAI API with this prompt.
+e.  Calls Gemini API with this prompt.
 f.  Gets the response, parses it for citations.
 g.  Logs the Q&A to the qa_logs table.
 h.  Returns the final, formatted answer to the React app.
