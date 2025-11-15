@@ -3,6 +3,7 @@ import { askQuestion, AskQuestionResponse, Citation } from '../services/api'
 import { supabase } from '../services/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import Header from '../components/Header'
+import ChatHistory from '../components/ChatHistory'
 
 interface Message {
   id: string
@@ -25,6 +26,8 @@ export default function ChatTest() {
   const [enrolledCourses, setEnrolledCourses] = useState<EnrolledCourse[]>([])
   const [selectedCourseId, setSelectedCourseId] = useState<string>('')
   const [loadingCourses, setLoadingCourses] = useState(true)
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
+  const [historyRefresh, setHistoryRefresh] = useState(0)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   // Redirect instructors to teacher dashboard
@@ -39,17 +42,9 @@ export default function ChatTest() {
   }, [user])
 
   useEffect(() => {
-    if (selectedCourseId) {
-      // Reset messages when course changes
-      setMessages([
-        {
-          id: '0',
-          type: 'assistant',
-          content:
-            'Hello! I\'m your AI teaching assistant. Ask me anything about your course materials!',
-          timestamp: new Date(),
-        },
-      ])
+    if (selectedCourseId && user) {
+      // Create new session when course changes
+      createNewSession()
     }
   }, [selectedCourseId])
 
@@ -90,6 +85,109 @@ export default function ChatTest() {
     }
   }
 
+  const createNewSession = async () => {
+    if (!user || !selectedCourseId) return
+
+    try {
+      const { data, error } = await supabase
+        .from('chat_sessions')
+        .insert({
+          user_id: user.id,
+          course_id: selectedCourseId,
+          title: 'New Chat',
+        })
+        .select()
+        .single()
+
+      if (error) throw error
+
+      const welcomeMessage = 'Hello! I\'m your AI teaching assistant. Ask me anything about your course materials!'
+
+      setCurrentSessionId(data.id)
+      setMessages([
+        {
+          id: '0',
+          type: 'assistant',
+          content: welcomeMessage,
+          timestamp: new Date(),
+        },
+      ])
+
+      // Save welcome message to database
+      await supabase
+        .from('chat_messages')
+        .insert({
+          session_id: data.id,
+          role: 'assistant',
+          content: welcomeMessage,
+          citations: null,
+        })
+
+      // Trigger history refresh
+      setHistoryRefresh(prev => prev + 1)
+    } catch (error) {
+      console.error('Error creating session:', error)
+    }
+  }
+
+  const loadSession = async (sessionId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('chat_messages')
+        .select('*')
+        .eq('session_id', sessionId)
+        .order('created_at', { ascending: true })
+
+      if (error) throw error
+
+      const loadedMessages: Message[] = data.map(msg => ({
+        id: msg.id,
+        type: msg.role as 'user' | 'assistant',
+        content: msg.content,
+        citations: msg.citations,
+        timestamp: new Date(msg.created_at),
+      }))
+
+      setMessages(loadedMessages)
+      setCurrentSessionId(sessionId)
+    } catch (error) {
+      console.error('Error loading session:', error)
+    }
+  }
+
+  const saveMessage = async (role: 'user' | 'assistant', content: string, citations?: Citation[]) => {
+    if (!currentSessionId) return
+
+    try {
+      const { data, error } = await supabase
+        .from('chat_messages')
+        .insert({
+          session_id: currentSessionId,
+          role,
+          content,
+          citations: citations || null,
+        })
+        .select()
+        .single()
+
+      if (error) throw error
+
+      // Update session title based on first user message
+      if (role === 'user' && messages.length <= 1) {
+        const title = content.slice(0, 50) + (content.length > 50 ? '...' : '')
+        await supabase
+          .from('chat_sessions')
+          .update({ title })
+          .eq('id', currentSessionId)
+      }
+
+      return data.id
+    } catch (error) {
+      console.error('Error saving message:', error)
+      return null
+    }
+  }
+
   useEffect(() => {
     scrollToBottom()
   }, [messages])
@@ -100,7 +198,7 @@ export default function ChatTest() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!input.trim() || loading) return
+    if (!input.trim() || loading || !currentSessionId) return
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -110,12 +208,16 @@ export default function ChatTest() {
     }
 
     setMessages(prev => [...prev, userMessage])
+    const userInput = input
     setInput('')
     setLoading(true)
 
+    // Save user message
+    await saveMessage('user', userInput)
+
     try {
       const response: AskQuestionResponse = await askQuestion({
-        question: input,
+        question: userInput,
         course_id: selectedCourseId,
       })
 
@@ -128,6 +230,12 @@ export default function ChatTest() {
       }
 
       setMessages(prev => [...prev, assistantMessage])
+
+      // Save assistant message
+      await saveMessage('assistant', response.answer, response.citations)
+
+      // Trigger history refresh to update timestamp
+      setHistoryRefresh(prev => prev + 1)
     } catch (error: any) {
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -136,6 +244,9 @@ export default function ChatTest() {
         timestamp: new Date(),
       }
       setMessages(prev => [...prev, errorMessage])
+
+      // Save error message
+      await saveMessage('assistant', errorMessage.content)
     } finally {
       setLoading(false)
     }
@@ -225,85 +336,100 @@ export default function ChatTest() {
         </div>
       </div>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-4">
-        {messages.map(message => (
-          <div
-            key={message.id}
-            className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
-          >
-            <div
-              className={`max-w-2xl rounded-lg px-4 py-3 ${
-                message.type === 'user'
-                  ? 'bg-emerald-500 text-white'
-                  : 'bg-white border border-gray-200'
-              }`}
-            >
-              <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+      {/* Main Content */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Chat History Sidebar */}
+        <ChatHistory
+          selectedCourseId={selectedCourseId}
+          currentSessionId={currentSessionId}
+          onSelectSession={loadSession}
+          onNewChat={createNewSession}
+          refreshTrigger={historyRefresh}
+        />
 
-              {/* Citations */}
-              {message.citations && message.citations.length > 0 && (
-                <div className="mt-3 pt-3 border-t border-gray-200">
-                  <p className="text-xs text-gray-600 mb-2 font-medium">
-                    Sources:
+        {/* Chat Area */}
+        <div className="flex-1 flex flex-col">
+          {/* Messages */}
+          <div className="flex-1 overflow-y-auto p-6 space-y-4">
+            {messages.map(message => (
+              <div
+                key={message.id}
+                className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
+              >
+                <div
+                  className={`max-w-2xl rounded-lg px-4 py-3 ${
+                    message.type === 'user'
+                      ? 'bg-emerald-500 text-white'
+                      : 'bg-white border border-gray-200'
+                  }`}
+                >
+                  <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+
+                  {/* Citations */}
+                  {message.citations && message.citations.length > 0 && (
+                    <div className="mt-3 pt-3 border-t border-gray-200">
+                      <p className="text-xs text-gray-600 mb-2 font-medium">
+                        Sources:
+                      </p>
+                      <div className="flex flex-wrap">
+                        {message.citations.map((citation, idx) =>
+                          formatCitation(citation, idx)
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  <p className="text-xs text-gray-400 mt-2">
+                    {message.timestamp.toLocaleTimeString()}
                   </p>
-                  <div className="flex flex-wrap">
-                    {message.citations.map((citation, idx) =>
-                      formatCitation(citation, idx)
-                    )}
+                </div>
+              </div>
+            ))}
+
+            {loading && (
+              <div className="flex justify-start">
+                <div className="bg-white border border-gray-200 rounded-lg px-4 py-3">
+                  <div className="flex items-center gap-2">
+                    <div className="animate-pulse flex space-x-2">
+                      <div className="h-2 w-2 bg-gray-400 rounded-full"></div>
+                      <div className="h-2 w-2 bg-gray-400 rounded-full"></div>
+                      <div className="h-2 w-2 bg-gray-400 rounded-full"></div>
+                    </div>
+                    <span className="text-sm text-gray-600">Thinking...</span>
                   </div>
                 </div>
-              )}
-
-              <p className="text-xs text-gray-400 mt-2">
-                {message.timestamp.toLocaleTimeString()}
-              </p>
-            </div>
-          </div>
-        ))}
-
-        {loading && (
-          <div className="flex justify-start">
-            <div className="bg-white border border-gray-200 rounded-lg px-4 py-3">
-              <div className="flex items-center gap-2">
-                <div className="animate-pulse flex space-x-2">
-                  <div className="h-2 w-2 bg-gray-400 rounded-full"></div>
-                  <div className="h-2 w-2 bg-gray-400 rounded-full"></div>
-                  <div className="h-2 w-2 bg-gray-400 rounded-full"></div>
-                </div>
-                <span className="text-sm text-gray-600">Thinking...</span>
               </div>
-            </div>
-          </div>
-        )}
+            )}
 
-        <div ref={messagesEndRef} />
-      </div>
-
-      {/* Input */}
-      <div className="bg-white border-t border-gray-200 p-4">
-        <form onSubmit={handleSubmit} className="max-w-4xl mx-auto">
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              placeholder="Ask a question about your course..."
-              className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              disabled={loading}
-            />
-            <button
-              type="submit"
-              disabled={loading || !input.trim() || !selectedCourseId}
-              className="px-6 py-3 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed transition"
-            >
-              Send
-            </button>
+            <div ref={messagesEndRef} />
           </div>
-          <p className="text-xs text-gray-500 mt-2">
-            Tip: Upload course documents first for better answers!
-          </p>
-        </form>
+
+          {/* Input */}
+          <div className="bg-white border-t border-gray-200 p-4">
+            <form onSubmit={handleSubmit} className="max-w-4xl mx-auto">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={input}
+                  onChange={e => setInput(e.target.value)}
+                  placeholder="Ask a question about your course..."
+                  className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  disabled={loading || !currentSessionId}
+                />
+                <button
+                  type="submit"
+                  disabled={loading || !input.trim() || !currentSessionId}
+                  className="px-6 py-3 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                >
+                  Send
+                </button>
+              </div>
+              <p className="text-xs text-gray-500 mt-2">
+                Tip: Upload course documents first for better answers!
+              </p>
+            </form>
+          </div>
+        </div>
       </div>
     </div>
   )
