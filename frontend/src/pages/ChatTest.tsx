@@ -18,7 +18,7 @@ interface EnrolledCourse {
 }
 
 export default function ChatTest() {
-  const { user } = useAuth()
+  const { user, userRole } = useAuth()
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -26,6 +26,13 @@ export default function ChatTest() {
   const [selectedCourseId, setSelectedCourseId] = useState<string>('')
   const [loadingCourses, setLoadingCourses] = useState(true)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  // Redirect instructors to teacher dashboard
+  useEffect(() => {
+    if (userRole === 'instructor') {
+      window.location.href = '/teacher'
+    }
+  }, [userRole])
 
   useEffect(() => {
     loadEnrolledCourses()
