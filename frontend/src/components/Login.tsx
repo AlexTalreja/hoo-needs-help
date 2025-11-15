@@ -5,9 +5,14 @@ import { useNavigate } from 'react-router-dom'
 interface LoginProps {
   onSuccess?: () => void
   onSwitchToSignup?: () => void
+  /**
+   * Tailwind width class for outer container. Allows caller to control popup width.
+   * Example: 'max-w-3xl', 'max-w-[800px]'. Defaults to a wider 3xl.
+   */
+  widthClass?: string
 }
 
-export default function Login({ onSuccess, onSwitchToSignup }: LoginProps) {
+export default function Login({ onSuccess, onSwitchToSignup, widthClass = 'max-w-3xl' }: LoginProps) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -45,8 +50,8 @@ export default function Login({ onSuccess, onSwitchToSignup }: LoginProps) {
   }
 
   return (
-    <div className="w-full max-w-md">
-      <div className="bg-white rounded-2xl shadow-xl p-8">
+    <div className={`w-full ${widthClass}`}>
+      <div className="bg-white rounded-2xl shadow-xl px-8 py-10 sm:px-10">
         <div className="text-center mb-8">
           <h2 className="text-3xl font-bold text-gray-900 mb-2">Welcome Back</h2>
           <p className="text-gray-600">Sign in to your account</p>

@@ -84,11 +84,13 @@ export default function Landing() {
               <Login
                 onSuccess={() => setShowAuth(null)}
                 onSwitchToSignup={() => setShowAuth('signup')}
+                widthClass="max-w-4xl"
               />
             ) : (
               <Signup
                 onSuccess={() => setShowAuth(null)}
                 onSwitchToLogin={() => setShowAuth('login')}
+                widthClass="max-w-4xl"
               />
             )}
           </div>

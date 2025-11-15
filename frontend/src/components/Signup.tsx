@@ -5,9 +5,11 @@ import { useNavigate } from 'react-router-dom'
 interface SignupProps {
   onSuccess?: () => void
   onSwitchToLogin?: () => void
+  /** Optional Tailwind width class to control popup width */
+  widthClass?: string
 }
 
-export default function Signup({ onSuccess, onSwitchToLogin }: SignupProps) {
+export default function Signup({ onSuccess, onSwitchToLogin, widthClass = 'max-w-3xl' }: SignupProps) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -82,7 +84,7 @@ export default function Signup({ onSuccess, onSwitchToLogin }: SignupProps) {
   }
 
   return (
-    <div className="w-full max-w-2xl">
+    <div className={`w-full ${widthClass}`}>
       <div className="bg-white rounded-2xl shadow-xl px-8 py-10 sm:px-10">
         <div className="text-center mb-10">
           <h2 className="text-3xl font-bold text-gray-900 mb-2">Create Account</h2>
