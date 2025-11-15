@@ -81,6 +81,7 @@ def ask_question(user):
             'question': question,
             'ai_answer': answer_data['answer'],
             'sources_cited': answer_data['citations'],
+            'confidence_score': answer_data['confidence_score'],
             'status': 'answered'
         }
         supabase.table('qa_logs').insert(log_entry).execute()
