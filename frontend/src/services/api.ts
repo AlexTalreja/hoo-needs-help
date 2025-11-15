@@ -231,6 +231,45 @@ export async function getCourse(courseId: string): Promise<{ course: Course }> {
   return apiRequest<{ course: Course }>(`/courses/${courseId}`)
 }
 
+// ==================== Chat Logs API ====================
+
+export interface ChatLog {
+  id: string
+  user_id: string
+  user_email?: string
+  question: string
+  ai_answer: string
+  rating?: number
+  status: string
+  created_at: string
+  sources_cited?: any[]
+}
+
+export interface Student {
+  id: string
+  email: string
+  questionCount: number
+}
+
+/**
+ * Get all students who have asked questions in a course.
+ */
+export async function getStudentsWithQuestions(
+  courseId: string
+): Promise<{ students: Student[] }> {
+  return apiRequest<{ students: Student[] }>(`/chat-logs/students/${courseId}`)
+}
+
+/**
+ * Get all chat logs for a specific student in a course.
+ */
+export async function getStudentChatLogs(
+  courseId: string,
+  studentId: string
+): Promise<{ logs: ChatLog[] }> {
+  return apiRequest<{ logs: ChatLog[] }>(`/chat-logs/${courseId}/${studentId}`)
+}
+
 // ==================== Health Check ====================
 
 /**

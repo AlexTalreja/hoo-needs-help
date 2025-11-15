@@ -1,26 +1,9 @@
 import { useState, useEffect } from 'react'
+import { getStudentsWithQuestions, getStudentChatLogs, ChatLog, Student } from '../../services/api'
 
 interface ChatLogsProps {
   courseId: string
   courseName: string
-}
-
-interface ChatLog {
-  id: string
-  user_id: string
-  user_email?: string
-  question: string
-  ai_answer: string
-  rating?: number
-  status: string
-  created_at: string
-  sources_cited?: any[]
-}
-
-interface Student {
-  id: string
-  email: string
-  questionCount: number
 }
 
 function ChatLogs({ courseId, courseName }: ChatLogsProps) {
@@ -33,35 +16,28 @@ function ChatLogs({ courseId, courseName }: ChatLogsProps) {
 
   useEffect(() => {
     loadStudents()
+    // Clear selected student when course changes
+    setSelectedStudentId(null)
+    setChatLogs([])
   }, [courseId])
 
   useEffect(() => {
     if (selectedStudentId) {
       loadChatLogs(selectedStudentId)
+    } else {
+      setChatLogs([])
     }
-  }, [selectedStudentId])
+  }, [selectedStudentId, courseId])
 
   const loadStudents = async () => {
     setIsLoading(true)
     setError(null)
 
     try {
-      // TODO: Replace with actual API call
-      const response = await fetch(`http://localhost:5000/api/chat-logs/students/${courseId}`, {
-        headers: {
-          // TODO: Add authorization header
-        },
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to load students')
-      }
-
-      const data = await response.json()
+      const data = await getStudentsWithQuestions(courseId)
       setStudents(data.students || [])
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load students')
-      // Set empty array for now
       setStudents([])
     } finally {
       setIsLoading(false)
@@ -73,21 +49,7 @@ function ChatLogs({ courseId, courseName }: ChatLogsProps) {
     setError(null)
 
     try {
-      // TODO: Replace with actual API call
-      const response = await fetch(
-        `http://localhost:5000/api/chat-logs/${courseId}/${studentId}`,
-        {
-          headers: {
-            // TODO: Add authorization header
-          },
-        }
-      )
-
-      if (!response.ok) {
-        throw new Error('Failed to load chat logs')
-      }
-
-      const data = await response.json()
+      const data = await getStudentChatLogs(courseId, studentId)
       setChatLogs(data.logs || [])
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load chat logs')

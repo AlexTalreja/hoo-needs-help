@@ -26,16 +26,24 @@ def get_students_with_questions(user, course_id):
             return jsonify({'error': 'Unauthorized'}), 403
 
         # Get all QA logs for this course with user information
-        qa_logs = supabase.table('qa_logs').select('user_id, users(email)').eq('course_id', course_id).execute()
+        # Join with users table to get role
+        qa_logs = supabase.table('qa_logs').select('user_id, users(email, role)').eq('course_id', course_id).execute()
 
-        # Group by student and count questions
+        # Group by student and count questions (filter out TAs and instructors)
         student_map = {}
         for log in qa_logs.data:
             user_id = log['user_id']
+            user_data = log.get('users', {})
+            user_role = user_data.get('role', 'student')
+
+            # Only include students (skip TAs and instructors)
+            if user_role not in ['student']:
+                continue
+
             if user_id not in student_map:
                 student_map[user_id] = {
                     'id': user_id,
-                    'email': log.get('users', {}).get('email', 'Unknown'),
+                    'email': user_data.get('email', 'Unknown'),
                     'questionCount': 0
                 }
             student_map[user_id]['questionCount'] += 1
@@ -67,12 +75,16 @@ def get_student_chat_logs(user, course_id, student_id):
         if course.data['instructor_id'] != user['id'] and user.get('role') not in ['ta', 'instructor']:
             return jsonify({'error': 'Unauthorized'}), 403
 
+        # Verify that the student_id belongs to a student (not TA/instructor)
+        student_user = supabase.table('users').select('email, role').eq('id', student_id).single().execute()
+
+        if not student_user.data or student_user.data.get('role') != 'student':
+            return jsonify({'error': 'User is not a student'}), 403
+
         # Get all QA logs for this student in this course
         response = supabase.table('qa_logs').select('*').eq('course_id', course_id).eq('user_id', student_id).order('created_at', desc=True).execute()
 
-        # Get user email
-        user_response = supabase.table('users').select('email').eq('id', student_id).single().execute()
-        user_email = user_response.data.get('email', 'Unknown')
+        user_email = student_user.data.get('email', 'Unknown')
 
         logs = response.data
         for log in logs:
