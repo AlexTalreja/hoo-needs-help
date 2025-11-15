@@ -204,7 +204,7 @@ Evaluate the confidence level for this answer on a scale of 0.0 to 1.0 based on:
 Be CONSERVATIVE in your estimate. Only give high scores (>0.8) if the answer is clearly well-supported and directly addresses the question.
 Give medium scores (0.5-0.8) for answers that are partially supported or somewhat indirect.
 Give low scores (<0.5) for answers that lack support, are vague, or show uncertainty.
-If you were unable to answer the question, you must give a 0.5 or below. Randomize the value from 0.40 to 0.50, with precision up to 2 significant figures.
+If you were unable to answer the question, you must give a 0.5 or below (If you respond that you don't know the answer, then randomize the value from 0.40 to 0.50, with precision up to 2 significant figures).
 
 Respond with ONLY a single decimal number between 0.0 and 1.0, nothing else."""
 
