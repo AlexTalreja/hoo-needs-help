@@ -11,6 +11,44 @@ logger = logging.getLogger(__name__)
 analytics_bp = Blueprint('analytics', __name__)
 
 
+def parse_timestamp(timestamp_str):
+    """
+    Parse timestamp string handling various formats including microseconds with too many digits.
+
+    Args:
+        timestamp_str: ISO format timestamp string
+
+    Returns:
+        datetime object
+    """
+    try:
+        # Replace 'Z' with '+00:00' for UTC
+        timestamp_str = timestamp_str.replace('Z', '+00:00')
+
+        # Split on '+' or '-' for timezone
+        if '+' in timestamp_str:
+            dt_part, tz_part = timestamp_str.rsplit('+', 1)
+            tz_part = '+' + tz_part
+        elif timestamp_str.count('-') > 2:  # Has timezone with -
+            dt_part, tz_part = timestamp_str.rsplit('-', 1)
+            tz_part = '-' + tz_part
+        else:
+            dt_part = timestamp_str
+            tz_part = ''
+
+        # Truncate microseconds to 6 digits if present
+        if '.' in dt_part:
+            date_part, micro_part = dt_part.rsplit('.', 1)
+            micro_part = micro_part[:6]  # Keep only first 6 digits
+            dt_part = f"{date_part}.{micro_part}"
+
+        timestamp_str = dt_part + tz_part
+        return datetime.fromisoformat(timestamp_str)
+    except Exception as e:
+        logger.warning(f"Failed to parse timestamp {timestamp_str}: {e}")
+        raise
+
+
 @analytics_bp.route('/analytics/<course_id>', methods=['GET'])
 @require_auth
 def get_analytics(user, course_id):
@@ -47,10 +85,17 @@ def get_analytics(user, course_id):
         if time_range != 'all':
             days = int(time_range)
             cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
-            qa_data = [
-                log for log in all_qa_data
-                if log.get('created_at') and datetime.fromisoformat(log['created_at'].replace('Z', '+00:00')) >= cutoff_date
-            ]
+            filtered_data = []
+            for log in all_qa_data:
+                if log.get('created_at'):
+                    try:
+                        log_date = parse_timestamp(log['created_at'])
+                        if log_date >= cutoff_date:
+                            filtered_data.append(log)
+                    except Exception:
+                        # Include the log anyway if we can't parse the date
+                        filtered_data.append(log)
+            qa_data = filtered_data
         else:
             qa_data = all_qa_data
 
@@ -137,3 +182,90 @@ def get_flagged_questions(user, course_id):
     except Exception as e:
         logger.error(f"Error in get_flagged_questions: {str(e)}")
         return jsonify({'error': 'Failed to fetch flagged questions'}), 500
+
+
+@analytics_bp.route('/document-citations/<course_id>', methods=['GET'])
+@require_auth
+def get_document_citations(user, course_id):
+    """
+    Get document citation statistics for pie chart.
+
+    Query Parameters:
+        time_range: str - '7', '30', '90', or 'all' (default: '7')
+
+    Returns:
+        {
+            "document_citations": [
+                {"document_name": str, "citation_count": int},
+                ...
+            ]
+        }
+    """
+    try:
+        logger.info(f"Fetching document citations for course {course_id}")
+
+        # Verify user is TA or instructor
+        if user.get('role') not in ['ta', 'instructor']:
+            logger.warning(f"Unauthorized access attempt by user with role: {user.get('role')}")
+            return jsonify({'error': 'Unauthorized'}), 403
+
+        # Get time range parameter
+        time_range = request.args.get('time_range', '7')
+        logger.info(f"Time range: {time_range}")
+
+        supabase = get_supabase_client()
+
+        # Get all QA logs for the course with sources_cited
+        logs = supabase.table('qa_logs').select('sources_cited, created_at').eq('course_id', course_id).execute()
+        all_qa_data = logs.data
+        logger.info(f"Retrieved {len(all_qa_data)} QA logs")
+
+        # Filter by time range
+        if time_range != 'all':
+            days = int(time_range)
+            cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
+            filtered_data = []
+            for log in all_qa_data:
+                if log.get('created_at'):
+                    try:
+                        log_date = parse_timestamp(log['created_at'])
+                        if log_date >= cutoff_date:
+                            filtered_data.append(log)
+                    except Exception:
+                        # Include the log anyway if we can't parse the date
+                        filtered_data.append(log)
+            qa_data = filtered_data
+        else:
+            qa_data = all_qa_data
+
+        # Count citations by document name
+        document_counter = Counter()
+
+        for log in qa_data:
+            sources = log.get('sources_cited', [])
+            if sources and isinstance(sources, list):
+                # Track unique documents per query (not per citation)
+                unique_docs_in_query = set()
+                for citation in sources:
+                    if isinstance(citation, dict):
+                        # Get document name from citation
+                        doc_name = citation.get('file_name')
+                        if doc_name and isinstance(doc_name, str) and doc_name not in unique_docs_in_query:
+                            unique_docs_in_query.add(doc_name)
+
+                # Increment counter for each unique document in this query
+                for doc_name in unique_docs_in_query:
+                    document_counter[doc_name] += 1
+
+        # Convert to list format for frontend
+        document_citations = [
+            {'document_name': doc_name, 'citation_count': count}
+            for doc_name, count in document_counter.most_common()
+        ]
+
+        logger.info(f"Returning {len(document_citations)} document citations")
+        return jsonify({'document_citations': document_citations}), 200
+
+    except Exception as e:
+        logger.error(f"Error in get_document_citations: {str(e)}", exc_info=True)
+        return jsonify({'error': f'Failed to fetch document citations: {str(e)}'}), 500
