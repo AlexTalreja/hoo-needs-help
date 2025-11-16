@@ -24,9 +24,9 @@ async function apiRequest<T>(
 ): Promise<T> {
   const token = await getAuthToken()
 
-  const headers: HeadersInit = {
+  const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    ...options.headers,
+    ...(options.headers as Record<string, string>),
   }
 
   if (token) {
@@ -62,6 +62,7 @@ export interface Citation {
   timestamp?: number
   question?: string
   doc_id?: string
+  similarity?: number // Optional similarity score for the citation
 }
 
 export interface AskQuestionResponse {
@@ -171,6 +172,23 @@ export interface AnalyticsData {
  */
 export async function getAnalytics(courseId: string, timeRange: string = '7'): Promise<AnalyticsData> {
   return apiRequest<AnalyticsData>(`/analytics/${courseId}?time_range=${timeRange}`)
+}
+
+export interface DocumentCitation {
+  document_name: string
+  citation_count: number
+}
+
+/**
+ * Get document citation statistics for a course.
+ */
+export async function getDocumentCitations(
+  courseId: string,
+  timeRange: string = '7'
+): Promise<{ document_citations: DocumentCitation[] }> {
+  return apiRequest<{ document_citations: DocumentCitation[] }>(
+    `/document-citations/${courseId}?time_range=${timeRange}`
+  )
 }
 
 export interface FlaggedQuestion {
