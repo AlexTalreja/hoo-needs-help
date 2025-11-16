@@ -10,6 +10,7 @@ interface Message {
   type: 'user' | 'assistant'
   content: string
   citations?: Citation[]
+  confidence_score?: number
   timestamp: Date
 }
 
@@ -226,6 +227,7 @@ export default function ChatTest() {
         type: 'assistant',
         content: response.answer,
         citations: response.citations,
+        confidence_score: response.confidence_score,
         timestamp: new Date(),
       }
 
@@ -365,19 +367,58 @@ export default function ChatTest() {
                 >
                   <p className="text-sm whitespace-pre-wrap">{message.content}</p>
 
-                  {/* Citations */}
-                  {message.citations && message.citations.length > 0 && (
-                    <div className="mt-3 pt-3 border-t border-gray-200">
-                      <p className="text-xs text-gray-600 mb-2 font-medium">
-                        Sources:
-                      </p>
-                      <div className="flex flex-wrap">
-                        {message.citations.map((citation, idx) =>
-                          formatCitation(citation, idx)
-                        )}
+              {/* Citations */}
+              {message.citations && message.citations.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-gray-200">
+                  <p className="text-xs text-gray-600 mb-2 font-medium">
+                    Sources:
+                  </p>
+                  <div className="flex flex-wrap">
+                    {message.citations.map((citation, idx) =>
+                      formatCitation(citation, idx)
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Confidence Score */}
+              {message.type === 'assistant' && message.confidence_score !== undefined && (
+                <div className="mt-3 pt-3 border-t border-gray-200">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-600 font-medium">
+                      Confidence:
+                    </span>
+                    <div className="flex items-center gap-2 flex-1">
+                      <div className="flex-1 bg-gray-200 rounded-full h-2 max-w-[100px]">
+                        <div
+                          className={`h-2 rounded-full transition-all ${
+                            message.confidence_score >= 0.8
+                              ? 'bg-green-500'
+                              : message.confidence_score >= 0.5
+                              ? 'bg-yellow-500'
+                              : 'bg-red-500'
+                          }`}
+                          style={{ width: `${message.confidence_score * 100}%` }}
+                        />
                       </div>
+                      <span className={`text-xs font-semibold ${
+                        message.confidence_score >= 0.8
+                          ? 'text-green-700'
+                          : message.confidence_score >= 0.5
+                          ? 'text-yellow-700'
+                          : 'text-red-700'
+                      }`}>
+                        {(message.confidence_score * 100).toFixed(0)}%
+                      </span>
                     </div>
+                  </div>
+                  {message.confidence_score < 0.5 && (
+                    <p className="text-xs text-red-600 mt-1">
+                      ⚠️ Low confidence - answer may not be fully accurate
+                    </p>
                   )}
+                </div>
+              )}
 
                   <p className={`text-xs mt-2 ${
                     message.type === 'user' ? 'text-white/70' : 'text-gray-400'

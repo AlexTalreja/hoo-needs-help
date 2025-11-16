@@ -58,7 +58,7 @@ def ask_question(user):
             'filter_course_id': course_id
         }).execute()
 
-        # Combine context sources
+        # Get all context sources (use all for answer generation)
         context_chunks = chunks_response.data if chunks_response.data else []
         verified_answers = verified_response.data if verified_response.data else []
 
@@ -81,6 +81,7 @@ def ask_question(user):
             'question': question,
             'ai_answer': answer_data['answer'],
             'sources_cited': answer_data['citations'],
+            'confidence_score': answer_data['confidence_score'],
             'status': 'answered'
         }
         supabase.table('qa_logs').insert(log_entry).execute()
