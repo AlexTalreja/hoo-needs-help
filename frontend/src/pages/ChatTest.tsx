@@ -316,7 +316,7 @@ export default function ChatTest() {
 
       {/* Course Selector */}
       <div className="bg-white border-b border-gray-200 px-6 py-3">
-        <div className="max-w-4xl mx-auto flex items-center gap-3">
+        <div className="max-w-4xl mx-auto flex items-center justify-center gap-3">
           <label className="text-sm font-medium text-gray-700">Course:</label>
           {loadingCourses ? (
             <div className="text-sm text-gray-500">Loading courses...</div>
@@ -379,7 +379,9 @@ export default function ChatTest() {
                     </div>
                   )}
 
-                  <p className="text-xs text-gray-400 mt-2">
+                  <p className={`text-xs mt-2 ${
+                    message.type === 'user' ? 'text-white/70' : 'text-gray-400'
+                  }`}>
                     {message.timestamp.toLocaleTimeString()}
                   </p>
                 </div>
