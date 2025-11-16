@@ -141,9 +141,8 @@ Answer:"""
         response = model.generate_content(prompt)
         answer_text = response.text
 
-        # Parse citations from answer
-        # TODO: Implement more robust citation extraction
-        citations = extract_citations(answer_text, context_chunks, verified_answers)
+        # Parse citations from answer (filter by similarity threshold of 0.85)
+        citations = extract_citations(answer_text, context_chunks, verified_answers, similarity_threshold=0.65)
 
         # Calculate confidence score
         confidence_score = calculate_confidence_score(
@@ -284,41 +283,51 @@ def calculate_heuristic_confidence(answer: str, context_chunks: list, verified_a
     return round(max(0.0, min(1.0, confidence)), 2)
 
 
-def extract_citations(answer: str, chunks: list, verified: list) -> list:
+def extract_citations(answer: str, chunks: list, verified: list, similarity_threshold: float = 0.85) -> list:
     """
-    Extract citation information from answer text.
+    Extract citation information from answer text, filtering by similarity threshold.
 
     Args:
         answer: Generated answer text
         chunks: Document chunks used as context
         verified: Verified answers used as context
+        similarity_threshold: Minimum similarity score to include citation (default 0.85)
 
     Returns:
-        List of citation objects
+        List of citation objects with similarity >= threshold
     """
     citations = []
 
-    # Extract citations from context chunks
+    # Extract citations from context chunks (only if similarity >= threshold)
     for chunk in chunks:
-        metadata = chunk.get('metadata', {})
-        citation = {
-            'type': metadata.get('type', 'pdf'),
-            'file_name': metadata.get('file_name', ''),
-            'doc_id': chunk.get('document_id')
-        }
+        similarity = chunk.get('similarity', 0)
 
-        if 'page' in metadata:
-            citation['page'] = metadata['page']
-        if 'start_time' in metadata:
-            citation['timestamp'] = metadata['start_time']
+        # Only include citations above similarity threshold
+        if similarity >= similarity_threshold:
+            metadata = chunk.get('metadata', {})
+            citation = {
+                'type': metadata.get('type', 'pdf'),
+                'file_name': metadata.get('file_name', ''),
+                'doc_id': chunk.get('document_id'),
+                'similarity': similarity
+            }
 
-        citations.append(citation)
+            if 'page' in metadata:
+                citation['page'] = metadata['page']
+            if 'start_time' in metadata:
+                citation['timestamp'] = metadata['start_time']
 
-    # Add verified answer citations
+            citations.append(citation)
+
+    # Add verified answer citations (only if similarity >= threshold)
     for v in verified:
-        citations.append({
-            'type': 'verified',
-            'question': v.get('question', '')
-        })
+        similarity = v.get('similarity', 0)
+
+        if similarity >= similarity_threshold:
+            citations.append({
+                'type': 'verified',
+                'question': v.get('question', ''),
+                'similarity': similarity
+            })
 
     return citations

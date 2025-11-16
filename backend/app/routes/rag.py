@@ -58,7 +58,7 @@ def ask_question(user):
             'filter_course_id': course_id
         }).execute()
 
-        # Combine context sources
+        # Get all context sources (use all for answer generation)
         context_chunks = chunks_response.data if chunks_response.data else []
         verified_answers = verified_response.data if verified_response.data else []
 
